@@ -1,40 +1,62 @@
 fun main() {
-    val charsMap = mapOf(
-        'a' to EnigmaChar(0u),
-        'b' to EnigmaChar(1u),
-        'c' to EnigmaChar(2u),
-        'd' to EnigmaChar(3u),
-    )
-    val reversedCharsMap = charsMap.swapKeysAndValues()
+    val enigma = enigma {
+        alphabet("abcdefghijklmnopqrstuvwxyz .")
 
-    fun Map<Char, Char>.toEnigmaChars(): Map<EnigmaChar, EnigmaChar> = buildMap {
-        this@toEnigmaChars.forEach { (key, value) ->
-            put(charsMap[key]!!, charsMap[value]!!)
+        rotorsChain {
+            firstRotor(
+                'a' to 'b',
+                'c' to 'd',
+                'e' to 'f',
+                'g' to 'h',
+                'i' to 'j',
+                'k' to 'l',
+                'm' to 'n',
+                'o' to 'p',
+                'q' to 'r',
+                's' to 't',
+                'u' to 'v',
+                'w' to 'x',
+                'y' to 'z',
+                ' ' to '.',
+            )
+            rotor(
+                'a' to 'i',
+                'b' to 'o',
+                'c' to 'p',
+                'd' to 'd',
+                'e' to 'e',
+                'f' to 'z',
+                'g' to 'k',
+                'h' to 'l',
+                'i' to 's',
+                'j' to 't',
+                'k' to 'a',
+                'l' to 'w',
+                'm' to '.',
+                'n' to 'y',
+                'o' to 'x',
+                '.' to 'g',
+                'q' to 'h',
+                'r' to 'u',
+                's' to 'j',
+                't' to 'v',
+                'u' to 'b',
+                'v' to 'c',
+                'w' to 'q',
+                'x' to 'r',
+                'y' to 'm',
+                'z' to 'n',
+                ' ' to 'f',
+                'p' to ' ',
+            )
         }
     }
 
-    val lastRotor = mapOf(
-        'a' to 'd',
-        'b' to 'c',
-        'c' to 'b',
-        'd' to 'a',
-    ).toEnigmaChars()
-
-    val firstRotor = mapOf(
-        'a' to 'd',
-        'b' to 'c',
-        'd' to 'b',
-        'c' to 'a',
-    ).toEnigmaChars()
-
-    val enigma = createRotors(listOf(lastRotor, firstRotor), listOf(0u, 0u))
 
     while (true) {
         val result = readln()
             .asSequence()
-            .map { charsMap[it] }
-            .map { enigma(it!!) }
-            .map { reversedCharsMap[it] }
+            .map { enigma(it) }
             .joinToString("")
         println(result)
     }
