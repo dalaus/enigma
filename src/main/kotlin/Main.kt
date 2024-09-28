@@ -2,6 +2,11 @@ fun main() {
     val enigma = enigma {
         alphabet("abcdefghijklmnopqrstuvwxyz .")
 
+        keysMapping(
+            'a' to 'b',
+            'u' to '.',
+        )
+
         rotorsChain {
             firstRotor(
                 'a' to 'b',
@@ -54,10 +59,7 @@ fun main() {
 
 
     while (true) {
-        val result = readln()
-            .asSequence()
-            .map { enigma(it) }
-            .joinToString("")
+        val result = readln().map(enigma).joinToString("")
         println(result)
     }
 }

@@ -1,70 +1,78 @@
+import kotlin.math.abs
+
 typealias Enigma = (Char) -> (Char)
 
-fun Map<Char, Char>.toEnigmaChars(charsMap: Map<Char, EnigmaChar>): Map<EnigmaChar, EnigmaChar> = buildMap {
-    this@toEnigmaChars.forEach { (key, value) ->
-        put(charsMap[key]!!, charsMap[value]!!)
-    }
-}
+@JvmInline
+value class EnigmaChar(val char: Int)
 
-class RotorsBuilder(private val charsMap: Map<Char, EnigmaChar>) {
-    var rotors: MutableList<Rotor> = mutableListOf()
+private fun wheel(input: EnigmaChar, mapping: (EnigmaChar) -> EnigmaChar, charsCount: Int, offset: Int): EnigmaChar =
+    EnigmaChar((mapping(EnigmaChar((input.char + offset) % charsCount)).char + charsCount - offset) % charsCount)
 
+
+class RotorsBuilder {
+    private var firstRotor: Map<Char, Char>? = null
     fun firstRotor(vararg mapping: Pair<Char, Char>) {
-        rotors += Rotor(mapping.toMap().toEnigmaChars(charsMap).run {
-            this + this.swapKeysAndValues()
-        })
+        firstRotor = mapping.toMap().run { this + this.swapKeysAndValues() }
     }
 
+    private val rotors: MutableList<Map<Char, Char>> = mutableListOf()
     fun rotor(vararg mapping: Pair<Char, Char>) {
-        rotors += Rotor(mapping.toMap().toEnigmaChars(charsMap))
+        rotors += mapping.toMap()
     }
+
+    fun buildChain(): List<Map<Char, Char>> =
+        rotors.reversed() + requireNotNull(firstRotor) + rotors.map { it.swapKeysAndValues() }
 }
 
 class EnigmaBuilder {
-    private lateinit var alphabet: String
+    private var alphabet: String? = null
     infix fun alphabet(alphabet: String) {
         this.alphabet = alphabet
     }
 
-    private val charsMap by lazy {
-        alphabet.mapIndexed { index, char -> char to EnigmaChar(index.toUInt()) }.toMap()
-    }
-    private val reversedCharsMap by lazy { charsMap.swapKeysAndValues() }
-    private val charsCount get() = alphabet.length.toUInt()
-
-
-    private lateinit var chain: List<(EnigmaChar) -> EnigmaChar>
+    private var rotorsChain: List<Map<Char, Char>>? = null
     fun rotorsChain(builder: RotorsBuilder.() -> Unit) {
-        val rotorsBuilder = RotorsBuilder(charsMap)
+        rotorsChain = RotorsBuilder().apply(builder).buildChain()
+    }
 
-        rotorsBuilder.builder()
-
-        val rotors = rotorsBuilder.rotors.drop(1)
-        val lastRotor = rotorsBuilder.rotors.first()
-
-        chain = rotors.map { it::rightInput } + lastRotor::rightInput + rotors.map { it::leftInput }
+    private var keysMapping = emptyMap<Char, Char>()
+    fun keysMapping(vararg mapping: Pair<Char, Char>) {
+        keysMapping = mapping.toMap().run { this + this.swapKeysAndValues() }
     }
 
     fun build(): Enigma {
-        val offsets = Array(chain.size / 2 + 1) { 0u }
+        val alphabet = requireNotNull(alphabet) { "You should set alphabet by alphabet(...)" }
+        val rotorsChain = requireNotNull(rotorsChain) { "You should set rotors chain by rotorsChain(...)" }
+        val charsMap = alphabet.mapIndexed { index, char -> char to EnigmaChar(index) }.toMap()
+        val reversedCharsMap = charsMap.swapKeysAndValues()
+        val charsCount = alphabet.length
+
+        val offsets = Array(rotorsChain.size / 2 + 1) { 0 }
 
         fun shift(index: Int = 0) {
             if (index <= offsets.lastIndex) {
-                offsets[index] = (offsets[index] + 1u) % charsCount
-                if (offsets[index] == 0u) shift(index + 1)
+                offsets[index] = (offsets[index] + 1) % charsCount
+                if (offsets[index] == 0) shift(index + 1)
             }
         }
 
+        val keysMapping = keysMapping.toEnigmaChars(charsMap)
+        val chain = rotorsChain.map { it.toEnigmaChars(charsMap) }.map { it::getValue }
+
         return { input ->
-            val result = chain.foldIndexed(charsMap[input]!!) { index, char, rotor ->
+            val enigmaChar = charsMap[input]!!
+            val mapped = keysMapping.getOrElse(enigmaChar) { enigmaChar }
+
+            shift()
+            val result = chain.foldIndexed(mapped) { index, char, rotor ->
                 val cycleIndex = cycleIndex(chain.size, index)
                 wheel(char, rotor, charsCount, offsets[cycleIndex])
             }
-            shift()
-            reversedCharsMap[result]!!
+            reversedCharsMap[keysMapping.getOrElse(result) { result }]!!
         }
     }
 }
 
-fun enigma(builder: EnigmaBuilder.() -> Unit): Enigma = EnigmaBuilder().apply { builder() }.build()
+fun enigma(builder: EnigmaBuilder.() -> Unit): Enigma = EnigmaBuilder().apply(builder).build()
 
+private fun cycleIndex(size: Int, index: Int) = -abs(-index + (size / 2)) + size / 2
